@@ -1,0 +1,44 @@
+import nodemailer from "nodemailer";
+
+const createTransporter = () => nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+});
+
+export const sendVerificationEmail = async (to, token) => {
+    const transporter = createTransporter();
+    const link = `${process.env.CLIENT_URL}/verify/${token}`;
+    const info = await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to,
+        subject: "Verify your email — Callify",
+        text: `Verify your email here: ${link}`,
+    });
+    console.log("VERIFICATION MAIL SENT:", info.response);
+};
+
+export const sendResetPasswordEmail = async (to, token) => {
+    const transporter = createTransporter();
+    const link = `${process.env.CLIENT_URL}/reset-password/${token}`;
+    const info = await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to,
+        subject: "Reset your password — Callify",
+        html: `
+            <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+                <h2 style="color: #f0f0f4;">Reset your password</h2>
+                <p style="color: #9090a0;">Click the button below to reset your Callify password. This link expires in <strong>1 hour</strong>.</p>
+                <a href="${link}" style="display: inline-block; padding: 0.72rem 1.5rem; background: #ff8c00; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 1rem 0;">
+                    Reset Password
+                </a>
+                <p style="color: #55555f; font-size: 0.82rem;">If you didn't request this, you can safely ignore this email.</p>
+            </div>
+        `,
+    });
+    console.log("RESET MAIL SENT:", info.response);
+};
