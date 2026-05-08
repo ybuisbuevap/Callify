@@ -1,7 +1,6 @@
-let IS_PROD = false;
-
-const server = IS_PROD
-   ? "http://localhost:8000"
-   : "http://localhost:8000";
+const server =
+  process.env.NODE_ENV === "production"
+    ? "https://callify-backend-709m.onrender.com"
+    : "http://localhost:8000";
 
 export default server;
