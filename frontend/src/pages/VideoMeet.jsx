@@ -24,7 +24,25 @@ import CheckIcon from '@mui/icons-material/Check';
 const server_url = server;
 var connections = {};
 const peerConfigConnections = {
-    "iceServers": [{ "urls": "stun:stun.l.google.com:19302" }]
+    "iceServers": [
+        { "urls": "stun:stun.l.google.com:19302" },
+        { "urls": "stun:stun1.l.google.com:19302" },
+        {
+            "urls": "turn:openrelay.metered.ca:80",
+            "username": "openrelayproject",
+            "credential": "openrelayproject"
+        },
+        {
+            "urls": "turn:openrelay.metered.ca:443",
+            "username": "openrelayproject",
+            "credential": "openrelayproject"
+        },
+        {
+            "urls": "turn:openrelay.metered.ca:443?transport=tcp",
+            "username": "openrelayproject",
+            "credential": "openrelayproject"
+        }
+    ]
 }
 
 export default function VideoMeetComponent() {
@@ -96,26 +114,25 @@ export default function VideoMeetComponent() {
         }
     }, [globalView]);
 
-    // auto-fill username from profile if logged in
     useEffect(() => {
+        // first check URL params (guest)
+        const params = new URLSearchParams(window.location.search);
+        const guest = params.get('guest');
+        if (guest) {
+            setUsername(guest);
+            return; // don't fetch profile if guest
+        }
+
+        // then check token (logged in user)
         const token = localStorage.getItem('token');
         if (!token) return;
-        
+
         fetch(`${server}/api/v1/users/me`, {
             headers: { Authorization: `Bearer ${token}` }
         })
         .then(res => res.json())
-        .then(data => {
-            if (data.name) setUsername(data.name);
-        })
-        .catch(() => {}); // silent fail — guest will type manually
-    }, []);
-
-    // read guest name from URL if coming from landing page
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const guest = params.get('guest');
-        if (guest) setUsername(guest);
+        .then(data => { if (data.name) setUsername(data.name); })
+        .catch(() => {});
     }, []);
 
     useEffect(() => {

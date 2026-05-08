@@ -9,9 +9,8 @@ let whiteboardState = {} // ← store whiteboard state per room
 export const connectToSocket = (server) => {
     const io = new Server(server, {
         cors: {
-            origin: "*",
+            origin: ["https://callify-connect.vercel.app", "http://localhost:3000"],
             methods: ["GET", "POST"],
-            allowedHeaders: ["*"],
             credentials: true
         }
     });
