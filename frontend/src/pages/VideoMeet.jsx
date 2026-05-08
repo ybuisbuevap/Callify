@@ -684,6 +684,14 @@ export default function VideoMeetComponent() {
         if (!socketRef.current) return;
         socketRef.current.emit("reaction", { emoji, username });
         setShowReactions(false);
+        // ← show reaction locally immediately
+        const id = Date.now() + Math.random();
+        const x = Math.random() * (window.innerWidth - 100) + 50;
+        const y = window.innerHeight - 150;
+        setFloatingReactions(prev => [...prev, { id, emoji, x, y, senderName: username }]);
+        setTimeout(() => {
+            setFloatingReactions(prev => prev.filter(r => r.id !== id));
+        }, 2500);
     };
 
     const toggleHandRaise = () => {

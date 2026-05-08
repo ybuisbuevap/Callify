@@ -149,7 +149,8 @@ export const connectToSocket = (server) => {
 
             if (found) {
                 connections[room].forEach(id => {
-                    io.to(id).emit("reaction", { ...data, socketId: socket.id });
+                    if (id !== socket.id) // ← exclude sender
+                        io.to(id).emit("reaction", { ...data, socketId: socket.id });
                 });
             }
         });
