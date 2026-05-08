@@ -1,0 +1,370 @@
+/* ── ROOT VARIABLES ─────────────── */
+:root {
+  --accent: linear-gradient(135deg, #FFEB3B 0%, #FF5722 100%);
+  --accent-solid: #FF8C00;
+  --bg: #000000;
+  --bg-2: #0a0a0f;
+  --bg-3: #141417;
+  --border: #2a2a30;
+  --text: #f0f0f4;
+  --text-2: #9090a0;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --font: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* ── GLOBAL STARRY BACKGROUND ─────────────── */
+body {
+  margin: 0;
+  padding: 0;
+  background: #000000;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Apply starry background to all page containers */
+.landingPageContainer,
+.authPageContainer,
+.homePageContainer,
+.historyPageContainer,
+.profilePageContainer {
+  background: #000000;
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+}
+
+/* TONS of bright yellow stars */
+.landingPageContainer::before,
+.authPageContainer::before,
+.homePageContainer::before,
+.historyPageContainer::before,
+.profilePageContainer::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    /* Extra Large bright stars */
+    radial-gradient(3px 3px at 20% 30%, rgba(255, 255, 100, 1), transparent),
+    radial-gradient(3px 3px at 60% 70%, rgba(255, 255, 0, 0.9), transparent),
+    radial-gradient(2.5px 2.5px at 50% 50%, rgba(255, 235, 59, 0.9), transparent),
+    radial-gradient(3px 3px at 80% 10%, rgba(255, 255, 100, 1), transparent),
+    radial-gradient(3.5px 3.5px at 90% 60%, rgba(255, 235, 0, 1), transparent),
+    radial-gradient(2.5px 2.5px at 33% 50%, rgba(255, 255, 100, 0.9), transparent),
+    radial-gradient(3px 3px at 15% 80%, rgba(255, 235, 59, 0.9), transparent),
+    radial-gradient(3px 3px at 75% 25%, rgba(255, 255, 100, 1), transparent),
+    radial-gradient(2.5px 2.5px at 40% 90%, rgba(255, 255, 0, 0.9), transparent),
+    radial-gradient(3px 3px at 85% 45%, rgba(255, 235, 59, 1), transparent),
+    /* Large stars */
+    radial-gradient(2px 2px at 10% 20%, rgba(255, 255, 100, 0.8), transparent),
+    radial-gradient(2px 2px at 95% 35%, rgba(255, 235, 59, 0.8), transparent),
+    radial-gradient(2.5px 2.5px at 45% 15%, rgba(255, 255, 0, 0.9), transparent),
+    radial-gradient(2px 2px at 70% 85%, rgba(255, 255, 100, 0.8), transparent),
+    radial-gradient(2.5px 2.5px at 25% 65%, rgba(255, 235, 59, 0.8), transparent),
+    radial-gradient(2px 2px at 88% 22%, rgba(255, 255, 0, 0.8), transparent),
+    radial-gradient(2px 2px at 13% 48%, rgba(255, 255, 100, 0.7), transparent),
+    radial-gradient(2.5px 2.5px at 65% 5%, rgba(255, 235, 59, 0.9), transparent),
+    radial-gradient(2px 2px at 30% 75%, rgba(255, 255, 0, 0.8), transparent),
+    radial-gradient(2px 2px at 95% 55%, rgba(255, 255, 100, 0.8), transparent),
+    /* Medium stars - MORE */
+    radial-gradient(1.5px 1.5px at 5% 10%, rgba(255, 255, 100, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 92% 88%, rgba(255, 235, 59, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 55% 35%, rgba(255, 255, 0, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 38% 72%, rgba(255, 255, 100, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 67% 53%, rgba(255, 235, 59, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 12% 45%, rgba(255, 255, 0, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 88% 18%, rgba(255, 255, 100, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 43% 8%, rgba(255, 235, 59, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 77% 92%, rgba(255, 255, 0, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 22% 58%, rgba(255, 255, 100, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 52% 42%, rgba(255, 235, 59, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 8% 68%, rgba(255, 255, 0, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 98% 12%, rgba(255, 255, 100, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 35% 28%, rgba(255, 235, 59, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 72% 78%, rgba(255, 255, 0, 0.7), transparent),
+    /* Small stars - EVERYWHERE */
+    radial-gradient(1px 1px at 3% 5%, rgba(255, 255, 100, 0.6), transparent),
+    radial-gradient(1px 1px at 17% 12%, rgba(255, 235, 59, 0.6), transparent),
+    radial-gradient(1px 1px at 28% 23%, rgba(255, 255, 0, 0.6), transparent),
+    radial-gradient(1px 1px at 42% 36%, rgba(255, 255, 100, 0.6), transparent),
+    radial-gradient(1px 1px at 58% 41%, rgba(255, 235, 59, 0.6), transparent),
+    radial-gradient(1px 1px at 63% 67%, rgba(255, 255, 0, 0.6), transparent),
+    radial-gradient(1px 1px at 71% 19%, rgba(255, 255, 100, 0.6), transparent),
+    radial-gradient(1px 1px at 83% 51%, rgba(255, 235, 59, 0.6), transparent),
+    radial-gradient(1px 1px at 91% 73%, rgba(255, 255, 0, 0.6), transparent),
+    radial-gradient(1px 1px at 7% 89%, rgba(255, 255, 100, 0.6), transparent),
+    radial-gradient(1px 1px at 19% 95%, rgba(255, 235, 59, 0.6), transparent),
+    radial-gradient(1px 1px at 31% 61%, rgba(255, 255, 0, 0.6), transparent),
+    radial-gradient(1px 1px at 47% 84%, rgba(255, 255, 100, 0.6), transparent),
+    radial-gradient(1px 1px at 54% 3%, rgba(255, 235, 59, 0.6), transparent),
+    radial-gradient(1px 1px at 66% 47%, rgba(255, 255, 0, 0.6), transparent),
+    radial-gradient(1px 1px at 79% 31%, rgba(255, 255, 100, 0.6), transparent),
+    radial-gradient(1px 1px at 84% 94%, rgba(255, 235, 59, 0.6), transparent),
+    radial-gradient(1px 1px at 96% 27%, rgba(255, 255, 0, 0.6), transparent),
+    radial-gradient(1px 1px at 11% 39%, rgba(255, 255, 100, 0.6), transparent),
+    radial-gradient(1px 1px at 24% 56%, rgba(255, 235, 59, 0.6), transparent),
+    radial-gradient(1px 1px at 37% 11%, rgba(255, 255, 0, 0.6), transparent),
+    radial-gradient(1px 1px at 49% 77%, rgba(255, 255, 100, 0.6), transparent),
+    radial-gradient(1px 1px at 61% 88%, rgba(255, 235, 59, 0.6), transparent),
+    radial-gradient(1px 1px at 73% 44%, rgba(255, 255, 0, 0.6), transparent),
+    radial-gradient(1px 1px at 86% 66%, rgba(255, 255, 100, 0.6), transparent),
+    radial-gradient(1px 1px at 93% 8%, rgba(255, 235, 59, 0.6), transparent),
+    /* Tiny stars for density */
+    radial-gradient(0.5px 0.5px at 14% 33%, rgba(255, 255, 100, 0.5), transparent),
+    radial-gradient(0.5px 0.5px at 26% 71%, rgba(255, 235, 59, 0.5), transparent),
+    radial-gradient(0.5px 0.5px at 39% 49%, rgba(255, 255, 0, 0.5), transparent),
+    radial-gradient(0.5px 0.5px at 51% 16%, rgba(255, 255, 100, 0.5), transparent),
+    radial-gradient(0.5px 0.5px at 64% 82%, rgba(255, 235, 59, 0.5), transparent),
+    radial-gradient(0.5px 0.5px at 76% 59%, rgba(255, 255, 0, 0.5), transparent),
+    radial-gradient(0.5px 0.5px at 89% 37%, rgba(255, 255, 100, 0.5), transparent),
+    radial-gradient(0.5px 0.5px at 4% 91%, rgba(255, 235, 59, 0.5), transparent);
+  background-size: 200% 200%;
+  background-position: 0% 0%;
+  animation: drift 30s ease infinite, twinkle 4s ease-in-out infinite;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@keyframes drift {
+  0%, 100% { 
+    background-position: 0% 0%; 
+    opacity: 1;
+  }
+  50% { 
+    background-position: 100% 100%;
+    opacity: 0.85;
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Make sure content is above stars */
+.landingPageContainer > *,
+.authPageContainer > *,
+.homePageContainer > *,
+.historyPageContainer > *,
+.profilePageContainer > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── LANDING ─────────────────────────────── */
+.landingPageContainer {
+  width: 100vw;
+  min-height: 100vh;
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.landingPageContainer nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2.5rem;
+  height: 60px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 100;
+}
+
+.navHeader h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.navlist {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  
+  
+}
+
+.navlist p {
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  
+}
+
+.navlist p:hover {
+  color: var(--text);
+  background: var(--bg-3);
+}
+
+.navlist div[role='button'] {
+  /* Changed from var(--accent) to gradient */
+  background: linear-gradient(135deg, #FFEB3B 0%, #FF5722 100%);
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.navlist div[role='button']:hover { 
+  /* opacity: 0.85; */
+  transform: translateY(-1px);
+}
+
+.navlist div[role='button'] p {
+  color: #000; /* Dark text for better contrast on orange */
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0;
+  background: none;
+}
+
+.navlist div[role='button'] p:hover {
+  color: #000;
+  background: none;
+}
+
+/* HERO */
+.landingMainContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4rem;
+  padding: 5rem 4rem;
+  min-height: calc(100vh - 60px);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.landingMainContainer > div:nth-child(1) { flex: 1; }
+
+.landingMainContainer > div:nth-child(1) h1 {
+  font-size: clamp(2.2rem, 4.5vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  margin-bottom: 1.1rem;
+}
+
+/* ✨ CHANGED: Gradient text for "just work." */
+.landingMainContainer > div:nth-child(1) h1 span {
+  background: linear-gradient(135deg, #FFEB3B 0%, #FF5722 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landingMainContainer > div:nth-child(1) p {
+  font-size: 1rem;
+  color: var(--text-2);
+  line-height: 1.75;
+  margin-bottom: 2.2rem;
+  max-width: 440px;
+  font-weight: 400;
+}
+
+/* ✨ CHANGED: Get started button gradient */
+.landingMainContainer > div:nth-child(1) div[role='button'] {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, #FFEB3B 0%, #FF5722 100%);
+  padding: 0.7rem 1.6rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(255, 87, 34, 0.2);
+}
+
+.landingMainContainer > div:nth-child(1) div[role='button']:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 87, 34, 0.35);
+}
+
+.landingMainContainer > div:nth-child(1) div[role='button'] a {
+  text-decoration: none;
+  color: #000; /* Dark text for better contrast */
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.landingMainContainer > div:nth-child(2) {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ── HOME ────────────────────────────────── */
+.navBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2.5rem;
+  height: 60px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.navBar h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.meetContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rem;
+  padding: 4rem;
+  min-height: calc(100vh - 60px);
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.leftPanel {
+  flex: 1;
+  max-width: 460px;
+}
+
+.rightPanel {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.rightPanel > img {
+  width: clamp(220px, 28vw, 380px);
+  height: auto;
+  border-radius: var(--radius-lg);
+  opacity: 0.9;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes floatUp {
+    0%   { transform: translateY(0) scale(1); opacity: 1; }
+    80%  { transform: translateY(-120px) scale(1.3); opacity: 0.8; }
+    100% { transform: translateY(-160px) scale(1); opacity: 0; }
+}
+
+.floating-reaction {
+    position: fixed;
+    font-size: 2rem;
+    animation: floatUp 2.5s ease-out forwards;
+    pointer-events: none;
+    z-index: 999;
+}
