@@ -101,7 +101,7 @@ const register = async (req, res) => {
             { expiresIn: "1h" }
         );
 
-        const verifyLink = `${window.location.origin}/verify/${token}`;
+        // const verifyLink = `${window.location.origin}/verify/${token}`;
 
         // 🔥 send email
         await sendVerificationEmail(email, token);

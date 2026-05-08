@@ -10,7 +10,7 @@ export default function Verify() {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    axios.get(`${server}/api/v1/users/verify/${token}`)
+    axios.get(`${server}/api/v1/users/verify/${token}` ,{timeout: 60000})
       .then(() => setStatus("success"))
       .catch(() => setStatus("error"));
   }, [token]);
@@ -30,6 +30,7 @@ export default function Verify() {
           <>
             <div style={s.spinner} />
             <p style={s.title}>Verifying your email…</p>
+            <p style={s.sub}>This may take up to 60 seconds on first load.</p>
           </>
         )}
 
