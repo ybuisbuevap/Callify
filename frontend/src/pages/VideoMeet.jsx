@@ -100,6 +100,21 @@ export default function VideoMeetComponent() {
         console.log("VIDEOS:", videos);
     }, [videos]);
 
+    useEffect(() => {
+        if (askForUsername) return;
+        const interval = setInterval(() => {
+            if (window.localStream) {
+                if (localVideoref.current && !localVideoref.current.srcObject) {
+                    localVideoref.current.srcObject = window.localStream;
+                }
+                if (soloVideoRef.current && !soloVideoRef.current.srcObject) {
+                    soloVideoRef.current.srcObject = window.localStream;
+                }
+            }
+        }, 500);
+        return () => clearInterval(interval);
+    }, [askForUsername]);
+
     // FIX: sync stream to soloVideoRef once lobby is dismissed
     useEffect(() => {
         if (!askForUsername && window.localStream) {
@@ -601,8 +616,9 @@ export default function VideoMeetComponent() {
                 if (localVideoref.current) localVideoref.current.srcObject = window.localStream;
                 if (soloVideoRef.current) soloVideoRef.current.srcObject = window.localStream;
             }
-        }, 500);
+        }, 1000);
     }
+
     const ctrlBtn = (active, danger) => ({
         width: danger ? '52px' : '44px',
         height: danger ? '52px' : '44px',
