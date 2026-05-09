@@ -178,6 +178,15 @@ export default function VideoMeetComponent() {
         setVideo(videoAvailable);
         setAudio(audioAvailable);
         connectToSocketServer();
+        // ensure stream stays connected after lobby dismissal
+        setTimeout(() => {
+            if (window.localStream && localVideoref.current) {
+                localVideoref.current.srcObject = window.localStream;
+            }
+            if (window.localStream && soloVideoRef.current) {
+                soloVideoRef.current.srcObject = window.localStream;
+            }
+        }, 300);
     }
 
     let getUserMediaSuccess = (stream) => {
