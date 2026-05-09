@@ -102,10 +102,16 @@ export default function VideoMeetComponent() {
 
     // FIX: sync stream to soloVideoRef once lobby is dismissed
     useEffect(() => {
-        if (!askForUsername && soloVideoRef.current && window.localStream) {
-            soloVideoRef.current.srcObject = window.localStream;
+        if (!askForUsername && window.localStream) {
+            if (soloVideoRef.current) {
+                soloVideoRef.current.srcObject = window.localStream;
+            }
+            if (localVideoref.current) {
+                localVideoref.current.srcObject = window.localStream;
+            }
         }
     }, [askForUsername]);
+
     useEffect(() => {
         if (showWhiteboard) {
             setLayoutMode("speaker");
@@ -576,8 +582,18 @@ export default function VideoMeetComponent() {
         setMessage("");
     }
 
-    let connect = () => { setAskForUsername(false); getMedia(); }
-
+    let connect = () => {
+        if (!username.trim()) return;
+        setAskForUsername(false);
+        getMedia();
+        // re-sync stream after short delay to ensure refs are mounted
+        setTimeout(() => {
+            if (window.localStream) {
+                if (localVideoref.current) localVideoref.current.srcObject = window.localStream;
+                if (soloVideoRef.current) soloVideoRef.current.srcObject = window.localStream;
+            }
+        }, 500);
+    }
     const ctrlBtn = (active, danger) => ({
         width: danger ? '52px' : '44px',
         height: danger ? '52px' : '44px',
