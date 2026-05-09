@@ -63,7 +63,6 @@ export default function VideoMeetComponent() {
     let [message, setMessage] = useState("");
     let [newMessages, setNewMessages] = useState(0);
     let [askForUsername, setAskForUsername] = useState(true);
-    let [username, setUsername] = useState("");
     const videoRef = useRef([]);
     let [videos, setVideos] = useState([]);
     const [activeSpeaker, setActiveSpeaker] = useState(null);
@@ -90,6 +89,11 @@ export default function VideoMeetComponent() {
     const [socketReady, setSocketReady] = useState(false);
     const [showInfo, setShowInfo] = useState(false);
     const [copied, setCopied] = useState('');
+    // read guest name synchronously
+    const [username, setUsername] = useState(() => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('guest') || '';
+    });
 
     useEffect(() => { getPermissions(); }, [])
     useEffect(() => {
@@ -115,18 +119,9 @@ export default function VideoMeetComponent() {
     }, [globalView]);
 
     useEffect(() => {
-        // first check URL params (guest)
-        const params = new URLSearchParams(window.location.search);
-        const guest = params.get('guest');
-        if (guest) {
-            setUsername(guest);
-            return; // don't fetch profile if guest
-        }
-
-        // then check token (logged in user)
+        if (username) return; // already set from URL (guest)
         const token = localStorage.getItem('token');
         if (!token) return;
-
         fetch(`${server}/api/v1/users/me`, {
             headers: { Authorization: `Bearer ${token}` }
         })
