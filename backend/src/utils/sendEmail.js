@@ -50,19 +50,24 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const sendVerificationEmail = async (to, token) => {
     const link = `${process.env.CLIENT_URL}/verify/${token}`;
-    await resend.emails.send({
-        from: 'Callify <onboarding@resend.dev>',
-        to,
-        subject: 'Verify your email — Callify',
-        text: `Verify your email here: ${link}`,
-    });
-    console.log("VERIFICATION MAIL SENT");
+    try {
+        const result = await resend.emails.send({
+            from: 'Callify <onboarding@resend.dev>',
+            to,
+            subject: 'Verify your email — Callify',
+            text: `Verify your email here: ${link}`,
+        });
+        console.log("VERIFICATION MAIL SENT:", result);
+    } catch (err) {
+        console.log("VERIFICATION MAIL ERROR:", err);
+    }
 };
 
 export const sendResetPasswordEmail = async (to, token) => {
     const link = `${process.env.CLIENT_URL}/reset-password/${token}`;
-    await resend.emails.send({
-        from: 'Callify <onboarding@resend.dev>',
+    try {
+        const result = await resend.emails.send({
+            from: 'Callify <onboarding@resend.dev>',
         to,
         subject: 'Reset your password — Callify',
         html: `
@@ -76,5 +81,8 @@ export const sendResetPasswordEmail = async (to, token) => {
             </div>
         `,
     });
-    console.log("RESET MAIL SENT");
+    console.log("RESET MAIL SENT:", result);
+} catch (err) {
+    console.log("RESET MAIL ERROR:", err);
+}
 };
