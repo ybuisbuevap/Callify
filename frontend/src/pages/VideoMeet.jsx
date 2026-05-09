@@ -27,9 +27,21 @@ const peerConfigConnections = {
     iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" },
-        { urls: "stun:stun3.l.google.com:19302" },
-        { urls: "stun:stun4.l.google.com:19302" },
+        {
+            urls: "turn:turn.cloudflare.com:3478?transport=udp",
+            username: "free",
+            credential: "free"
+        },
+        {
+            urls: "turn:turn.cloudflare.com:3478?transport=tcp",
+            username: "free",
+            credential: "free"
+        },
+        {
+            urls: "turns:turn.cloudflare.com:5349",
+            username: "free",
+            credential: "free"
+        },
         {
             urls: "turn:openrelay.metered.ca:80",
             username: "openrelayproject",
@@ -42,16 +54,6 @@ const peerConfigConnections = {
         },
         {
             urls: "turn:openrelay.metered.ca:443?transport=tcp",
-            username: "openrelayproject",
-            credential: "openrelayproject"
-        },
-        {
-            urls: "turn:relay.metered.ca:80",
-            username: "openrelayproject",
-            credential: "openrelayproject"
-        },
-        {
-            urls: "turn:relay.metered.ca:443",
             username: "openrelayproject",
             credential: "openrelayproject"
         }
