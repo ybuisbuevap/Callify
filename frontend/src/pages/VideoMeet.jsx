@@ -193,24 +193,17 @@ export default function VideoMeetComponent() {
         setVideo(videoAvailable);
         setAudio(audioAvailable);
         connectToSocketServer();
-        // ensure stream stays connected after lobby dismissal
         setTimeout(() => {
-            if (window.localStream && localVideoref.current) {
-                localVideoref.current.srcObject = window.localStream;
+            if (window.localStream) {
+                if (localVideoref.current) localVideoref.current.srcObject = window.localStream;
+                if (soloVideoRef.current) soloVideoRef.current.srcObject = window.localStream;
             }
-            if (window.localStream && soloVideoRef.current) {
-                soloVideoRef.current.srcObject = window.localStream;
-            }
-        }, 300);
+        }, 1000);
     }
 
     let getUserMediaSuccess = (stream) => {
         createAudioAnalyser(stream, socketIdRef.current);
-        if (window.localStream) {
-            window.localStream.getTracks().forEach(track => {
-                if (track.readyState === "live") track.stop();
-            });
-        }
+    
         window.localStream = stream;
         if (localVideoref.current) localVideoref.current.srcObject = stream;
         if (soloVideoRef.current) soloVideoRef.current.srcObject = stream;
