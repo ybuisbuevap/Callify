@@ -181,6 +181,17 @@ export default function VideoMeetComponent() {
         };
     }, []);
 
+    useEffect(() => {
+        videos.forEach(v => {
+            if (v.stream) {
+                const videoEl = document.querySelector(`[data-socketid="${v.socketId}"]`);
+                if (videoEl && videoEl.srcObject !== v.stream) {
+                    videoEl.srcObject = v.stream;
+                }
+            }
+        });
+    }, [videos]);
+
     const getPermissions = async () => {
         try {
             const videoPermission = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -363,7 +374,6 @@ export default function VideoMeetComponent() {
             }
         }
     }
-
 
     let connectToSocketServer = () => {
         socketRef.current = io.connect(server_url, { 
@@ -1160,6 +1170,7 @@ export default function VideoMeetComponent() {
                                                 position: 'relative',
                                             }}>
                                                 <video
+                                                    data-socketid={v.socketId}
                                                     ref={ref => { if (ref && v.stream) ref.srcObject = v.stream; }}
                                                     autoPlay playsInline
                                                     style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
@@ -1219,6 +1230,7 @@ export default function VideoMeetComponent() {
                                             {/* Screen share — you are sharing */}
                                             {isMeSharing && (
                                                 <video
+                                                    data-socketid={`screen-${socketIdRef.current}`}
                                                     ref={ref => {
                                                         if (ref && screenStream) {
                                                             ref.srcObject = screenStream;
@@ -1230,6 +1242,7 @@ export default function VideoMeetComponent() {
                                                         width: "100%",
                                                         height: "100%",
                                                         objectFit: "contain",
+
                                                     }}
                                                 />
                                             )}
@@ -1241,6 +1254,7 @@ export default function VideoMeetComponent() {
                                                     .map(v => (
                                                         <video
                                                             key={v.socketId}
+                                                            data-socketid={v.socketId}
                                                             ref={ref => {
                                                                 if (ref && v.stream) ref.srcObject = v.stream;
                                                             }}
