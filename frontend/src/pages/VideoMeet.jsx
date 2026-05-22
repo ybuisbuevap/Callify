@@ -192,6 +192,20 @@ export default function VideoMeetComponent() {
         });
     }, [videos]);
 
+    useEffect(() => {
+        console.log("syncing videos:", videos.length);
+        videos.forEach(v => {
+            if (v.stream) {
+                const videoEl = document.querySelector(`[data-socketid="${v.socketId}"]`);
+                console.log("found el:", videoEl, "stream:", v.stream);
+                if (videoEl && videoEl.srcObject !== v.stream) {
+                    videoEl.srcObject = v.stream;
+                    console.log("SET srcObject for", v.socketId);
+                }
+            }
+        });
+    }, [videos]);
+
     const getPermissions = async () => {
         try {
             const videoPermission = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -606,9 +620,7 @@ export default function VideoMeetComponent() {
             .then(getDisplayMediaSuccess)
             .catch(e => console.log(e));
     };
-    // useEffect(() => {
-    //     if (screen === true) getDisplayMedia();
-    // }, [screen]);
+
 
     let handleEndCall = () => {
         try { localVideoref.current.srcObject.getTracks().forEach(t => t.stop()) } catch (e) { }
@@ -845,14 +857,7 @@ export default function VideoMeetComponent() {
 
                 /* ── MEETING ROOM ── */
                 <div className={styles.meetVideoContainer}>
-                    {/* {socketRef.current && (
-                        <Whiteboard
-                            socket={socketRef.current}
-                            roomId={window.location.pathname}
-                            show={showWhiteboard}
-                            onClose={() => setShowWhiteboard(false)}
-                        />
-                )} */}
+                    
                     {/* Chat panel */}
                     {showModal && (
                         <div className={styles.chatRoom}>
@@ -1086,17 +1091,7 @@ export default function VideoMeetComponent() {
                                     transition: 'all 0.25s ease',
                                 }}
                             />
-                            {/* {showWhiteboard && (
-                                <div style={videoAreaStyle}>
-                                    <Whiteboard
-                                        socket={socketRef.current}
-                                        roomId={window.location.pathname}
-                                        show={true}
-                                        inline={true}
-                                        onClose={() => setShowWhiteboard(false)}
-                                    />
-                                </div>
-                            )} */}
+                            
 
                                 <div style={{
                                     ...videoAreaStyle,
@@ -1111,18 +1106,7 @@ export default function VideoMeetComponent() {
                                     />
                                 </div>
 
-                            {/* Whiteboard fills main area when alone */}
-                            {/* {showWhiteboard && socketRef.current && (
-                                <div style={videoAreaStyle}>
-                                    <Whiteboard
-                                        socket={socketRef.current}
-                                        roomId={window.location.pathname}
-                                        show={showWhiteboard}
-                                        onClose={() => setShowWhiteboard(false)}
-                                        inline={true}
-                                    />
-                                </div>
-                            )} */}
+                            
                         </>
                     ) : (
                         <>
