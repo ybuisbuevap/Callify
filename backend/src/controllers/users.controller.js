@@ -6,14 +6,16 @@ import crypto from "crypto";
 import { Meeting } from "../models/meeting.model.js";
 import nodemailer from "nodemailer";
 import { sendVerificationEmail, sendResetPasswordEmail } from "../utils/sendEmail.js";
+import logger from "../utils/logger.js";
+import { authCookieOptions, clearAuthCookieOptions } from "../utils/cookieOptions.js";
 
 const login = async (req, res) => {
 
     const { username, password } = req.body;
 
-    // 🔥 ADD HERE (TOP)
-    console.log("INPUT:", username, password);
-    console.log("LOGIN API HIT");
+    if (typeof username !== "string" || typeof password !== "string") {
+        return res.status(400).json({ message: "Invalid input" });
+    }
 
     if (!username || !password) {
         return res.status(400).json({ message: "Please Provide" })
@@ -21,9 +23,6 @@ const login = async (req, res) => {
 
     try {
         const user = await User.findOne({ username });
-
-        // 🔥 ADD HERE
-        console.log("USER FROM DB:", user);
 
         if (!user) {
             return res.status(404).json({ message: "User Not Found" })
@@ -34,9 +33,6 @@ const login = async (req, res) => {
         }
 
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
-
-        // 🔥 ADD HERE
-        console.log("PASSWORD MATCH:", isPasswordCorrect);
 
         if (!isPasswordCorrect) {
             return res.status(401).json({ message: "Invalid Username or password" })
@@ -51,33 +47,48 @@ const login = async (req, res) => {
             { expiresIn: "1d" }
         );
 
-        return res.status(200).json({ token });
+        res.cookie("token", token, authCookieOptions);
+        return res.status(200).json({ message: "Logged in successfully" });
 
     } catch (e) {
-        return res.status(500).json({ message: e.message })
+        logger.error({ err: e }, "Login error");
+        return res.status(500).json({ message: "Something went wrong. Please try again." })
     }
+}
+
+// httpOnly cookies can't be cleared by frontend JS — the server has to do it.
+const logout = (req, res) => {
+    res.clearCookie("token", clearAuthCookieOptions);
+    return res.status(200).json({ message: "Logged out successfully" });
 }
 
 
 const register = async (req, res) => {
     const { name, username, email, password } = req.body;
-    console.log("Register hit:", name, username, email, password); // add this
-    console.log("REGISTER API HIT");
+
+    if (
+        typeof name !== "string" || typeof username !== "string" ||
+        typeof email !== "string" || typeof password !== "string"
+    ) {
+        return res.status(400).json({ message: "Invalid input" });
+    }
 
     try {
         if (!name || !username || !email || !password) {
             return res.status(400).json({ message: "All fields are required" });
         }
 
+        if (password.length < 6) {
+            return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
+
         const existingUser = await User.findOne({ username });
-        console.log("Existing user:", existingUser); // add this
-        
+
         if (existingUser) {
             return res.status(httpStatus.CONFLICT).json({ message: "User already exists" });
         }
 
         const existingEmail = await User.findOne({ email });
-        console.log("Existing email:", existingEmail); // add this
 
         if (existingEmail) {
             return res.status(httpStatus.CONFLICT).json({ message: "Email already in use" });
@@ -109,8 +120,8 @@ const register = async (req, res) => {
         res.status(201).json({ message: "Verification email sent" });
 
     } catch (e) {
-        console.log("Register error:", e); // add this
-        res.status(500).json({ message: e.message })
+        logger.error({ err: e }, "Register error");
+        res.status(500).json({ message: "Something went wrong. Please try again." })
     }
 }
 
@@ -141,14 +152,15 @@ const getUserHistory = async (req, res) => {
 
     try {
         // ✅ user comes from JWT middleware
-        const username = req.user.username;
+        const userId = req.user._id;
 
-        const meetings = await Meeting.find({ user_id: username });
+        const meetings = await Meeting.find({ user_id: userId });
 
         res.json(meetings);
 
     } catch (e) {
-        res.status(500).json({ message: e.message });
+        logger.error({ err: e }, "Get history error");
+        res.status(500).json({ message: "Something went wrong. Please try again." });
     }
 }
 
@@ -161,10 +173,10 @@ const addToHistory = async (req, res) => {
 
     try {
         // ✅ user comes from JWT middleware
-        const username = req.user.username;
+        const userId = req.user._id;
 
         const newMeeting = new Meeting({
-            user_id: username,
+            user_id: userId,
             meetingCode: meeting_code
         })
 
@@ -172,7 +184,8 @@ const addToHistory = async (req, res) => {
 
         res.status(201).json({ message: "Added code to history" })
     } catch (e) {
-        res.status(500).json({ message: e.message });
+        logger.error({ err: e }, "Add history error");
+        res.status(500).json({ message: "Something went wrong. Please try again." });
     }
 }
 
@@ -186,17 +199,18 @@ const getMe = async (req, res) => {
             name: user.name,
             username: user.username,
             email: user.email,
-            isGoogleUser: user.password?.startsWith("GOOGLE_AUTH_")
+            isGoogleUser: user.authProvider === "google"
         });
     } catch (e) {
-        res.status(500).json({ message: e.message });
+        logger.error({ err: e }, "Get me error");
+        res.status(500).json({ message: "Something went wrong. Please try again." });
     }
 };
 
 const resendVerification = async (req, res) => {
     const { email } = req.body;
 
-    if (!email) {
+    if (typeof email !== "string" || !email) {
         return res.status(400).json({ message: "Email is required" });
     }
 
@@ -222,14 +236,15 @@ const resendVerification = async (req, res) => {
         return res.status(200).json({ message: "Verification email resent" });
 
     } catch (e) {
-        return res.status(500).json({ message: e.message });
+        logger.error({ err: e }, "Resend verification error");
+        return res.status(500).json({ message: "Something went wrong. Please try again." });
     }
 };
 
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
 
-    if (!email) {
+    if (typeof email !== "string" || !email) {
         return res.status(400).json({ message: "Email is required" });
     }
 
@@ -252,7 +267,8 @@ const forgotPassword = async (req, res) => {
         return res.status(200).json({ message: "If this email exists, a reset link has been sent" });
 
     } catch (e) {
-        return res.status(500).json({ message: e.message });
+        logger.error({ err: e }, "Forgot password error");
+        return res.status(500).json({ message: "Something went wrong. Please try again." });
     }
 };
 
@@ -289,6 +305,13 @@ const updateProfile = async (req, res) => {
         return res.status(400).json({ message: "Nothing to update" });
     }
 
+    if (
+        (name !== undefined && typeof name !== "string") ||
+        (username !== undefined && typeof username !== "string")
+    ) {
+        return res.status(400).json({ message: "Invalid input" });
+    }
+
     try {
         const userId = req.user._id || req.user.id;
 
@@ -316,7 +339,8 @@ const updateProfile = async (req, res) => {
         });
 
     } catch (e) {
-        return res.status(500).json({ message: e.message });
+        logger.error({ err: e }, "Update profile error");
+        return res.status(500).json({ message: "Something went wrong. Please try again." });
     }
 };
 
@@ -331,7 +355,7 @@ const deleteAccount = async (req, res) => {
         }
 
         // Google OAuth users don't have a real password
-        if (!user.password.startsWith("GOOGLE_AUTH_")) {
+        if (user.authProvider !== "google") {
             if (!password) {
                 return res.status(400).json({ message: "Password is required" });
             }
@@ -342,7 +366,7 @@ const deleteAccount = async (req, res) => {
         }
 
         // delete all meeting history
-        await Meeting.deleteMany({ user_id: user.username });
+        await Meeting.deleteMany({ user_id: user._id });
 
         // delete user
         await User.findByIdAndDelete(req.user._id);
@@ -350,8 +374,9 @@ const deleteAccount = async (req, res) => {
         return res.status(200).json({ message: "Account deleted successfully" });
 
     } catch (e) {
-        return res.status(500).json({ message: e.message });
+        logger.error({ err: e }, "Delete account error");
+        return res.status(500).json({ message: "Something went wrong. Please try again." });
     }
 };
 
-export { login, register, getUserHistory, addToHistory, getMe, verifyEmail, resendVerification, forgotPassword, resetPassword, updateProfile, deleteAccount };
+export { login, logout, register, getUserHistory, addToHistory, getMe, verifyEmail, resendVerification, forgotPassword, resetPassword, updateProfile, deleteAccount };

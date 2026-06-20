@@ -28,9 +28,7 @@ export default function Profile() {
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const res = await axios.get(`${server}/api/v1/users/me`, {
-                    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-                });
+                const res = await axios.get(`${server}/api/v1/users/me`);
                 setName(res.data.name);
                 setUsername(res.data.username);
                 setEmail(res.data.email);
@@ -68,10 +66,9 @@ export default function Profile() {
         setDeleteError('');
         try {
             await axios.delete(`${server}/api/v1/users/profile`, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
                 data: { password: deletePassword }
             });
-            localStorage.removeItem('token');
+            await axios.post(`${server}/api/v1/users/logout`);
             navigate('/auth');
         } catch (err) {
             setDeleteError(err?.response?.data?.message || 'Something went wrong.');

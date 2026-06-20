@@ -23,7 +23,7 @@ passport.use(new GoogleStrategy({
             name: profile.displayName,
             username: profile.emails[0].value.split("@")[0], // use email prefix as username
             email: profile.emails[0].value,
-            password: "GOOGLE_AUTH_" + profile.id, // placeholder, user won't use this
+            authProvider: "google",
             isVerified: true // Google already verified the email
         });
 

@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { Snackbar } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
 import server from '../environment';
 import axios from 'axios';
 
@@ -21,18 +20,12 @@ export default function Authentication() {
   const [showForgot, setShowForgot] = React.useState(false);
   const [forgotEmail, setForgotEmail] = React.useState('');
   const [forgotLoading, setForgotLoading] = React.useState(false);
-  const navigate = useNavigate();
 
-  // handle token from Google OAuth redirect
+  // Google OAuth now sets the cookie server-side and redirects straight to
+  // /home on success — this page only ever sees a failure redirect.
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
     const error = params.get('error');
-
-    if (token) {
-      localStorage.setItem('token', token);
-      navigate('/home');
-    }
 
     if (error === 'google_failed') {
       setError('Google sign in failed. Please try again.');

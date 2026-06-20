@@ -1,0 +1,236 @@
+diff --git a/frontend/src/contexts/AuthContext.jsx b/frontend/src/contexts/AuthContext.jsx
+index eeca41b..f4987dd 100644
+--- a/frontend/src/contexts/AuthContext.jsx
++++ b/frontend/src/contexts/AuthContext.jsx
+@@ -31,7 +31,6 @@ export const AuthProvider = ({ children }) => {
+         try {
+             let request = await client.post("/login", { username, password });
+             if (request.status === 200) {
+-                localStorage.setItem("token", request.data.token);
+                 router("/home");
+             }
+         } catch (err) {
+@@ -39,6 +38,18 @@ export const AuthProvider = ({ children }) => {
+         }
+     };
+ 
++    const handleLogout = async () => {
++        try {
++            await client.post("/logout");
++        } catch (err) {
++            // even if the request fails, proceed to clear local state —
++            // an expired/invalid cookie shouldn't trap the user on this page
++        } finally {
++            setUserData({});
++            router("/");
++        }
++    };
++
+     const handleResendVerification = async (email) => {
+         try {
+             let request = await client.post("/resend-verification", { email });
+@@ -50,9 +61,7 @@ export const AuthProvider = ({ children }) => {
+ 
+     const getHistoryOfUser = async () => {
+         try {
+-            let request = await client.get("/history", {
+-                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+-            });
++            let request = await client.get("/history");
+             return request.data;
+         } catch (err) {
+             throw err;
+@@ -61,10 +70,7 @@ export const AuthProvider = ({ children }) => {
+ 
+     const addToUserHistory = async (meetingCode) => {
+         try {
+-            let request = await client.post("/history",
+-                { meeting_code: meetingCode },
+-                { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+-            );
++            let request = await client.post("/history", { meeting_code: meetingCode });
+             return request;
+         } catch (e) {
+             throw e;
+@@ -73,10 +79,7 @@ export const AuthProvider = ({ children }) => {
+ 
+     const handleUpdateProfile = async (name, username) => {
+     try {
+-        const request = await client.put("/profile",
+-            { name, username },
+-            { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+-        );
++        const request = await client.put("/profile", { name, username });
+         return request.data;
+     } catch (err) {
+         throw err;
+@@ -85,7 +88,7 @@ export const AuthProvider = ({ children }) => {
+ 
+     const data = {
+         userData, setUserData, addToUserHistory, getHistoryOfUser,
+-        handleRegister, handleLogin, handleResendVerification, handleUpdateProfile
++        handleRegister, handleLogin, handleLogout, handleResendVerification, handleUpdateProfile
+     };
+ 
+     return (
+diff --git a/frontend/src/index.js b/frontend/src/index.js
+index d563c0f..9006955 100644
+--- a/frontend/src/index.js
++++ b/frontend/src/index.js
+@@ -1,9 +1,15 @@
+ import React from 'react';
+ import ReactDOM from 'react-dom/client';
++import axios from 'axios';
+ import './index.css';
+ import App from './App';
+ import reportWebVitals from './reportWebVitals';
+ 
++// The JWT now lives in an httpOnly cookie instead of localStorage — this
++// makes every axios request include it automatically. Set once, here,
++// rather than per-call.
++axios.defaults.withCredentials = true;
++
+ const root = ReactDOM.createRoot(document.getElementById('root'));
+ root.render(
+   <React.StrictMode>
+diff --git a/frontend/src/pages/Profile.jsx b/frontend/src/pages/Profile.jsx
+index 98c6c88..1c61cd1 100644
+--- a/frontend/src/pages/Profile.jsx
++++ b/frontend/src/pages/Profile.jsx
+@@ -28,9 +28,7 @@ export default function Profile() {
+     useEffect(() => {
+         const fetchUser = async () => {
+             try {
+-                const res = await axios.get(`${server}/api/v1/users/me`, {
+-                    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+-                });
++                const res = await axios.get(`${server}/api/v1/users/me`);
+                 setName(res.data.name);
+                 setUsername(res.data.username);
+                 setEmail(res.data.email);
+@@ -68,10 +66,9 @@ export default function Profile() {
+         setDeleteError('');
+         try {
+             await axios.delete(`${server}/api/v1/users/profile`, {
+-                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+                 data: { password: deletePassword }
+             });
+-            localStorage.removeItem('token');
++            await axios.post(`${server}/api/v1/users/logout`);
+             navigate('/auth');
+         } catch (err) {
+             setDeleteError(err?.response?.data?.message || 'Something went wrong.');
+diff --git a/frontend/src/pages/VideoMeet.jsx b/frontend/src/pages/VideoMeet.jsx
+index 57c0c74..dc91729 100644
+--- a/frontend/src/pages/VideoMeet.jsx
++++ b/frontend/src/pages/VideoMeet.jsx
+@@ -156,10 +156,8 @@ export default function VideoMeetComponent() {
+ 
+     useEffect(() => {
+         if (username) return; // already set from URL (guest)
+-        const token = localStorage.getItem('token');
+-        if (!token) return;
+         fetch(`${server}/api/v1/users/me`, {
+-            headers: { Authorization: `Bearer ${token}` }
++            credentials: 'include'
+         })
+         .then(res => res.json())
+         .then(data => { if (data.name) setUsername(data.name); })
+diff --git a/frontend/src/pages/authentication.jsx b/frontend/src/pages/authentication.jsx
+index b647865..cc70ef9 100644
+--- a/frontend/src/pages/authentication.jsx
++++ b/frontend/src/pages/authentication.jsx
+@@ -1,7 +1,6 @@
+ import * as React from 'react';
+ import { AuthContext } from '../contexts/AuthContext';
+ import { Snackbar } from '@mui/material';
+-import { useNavigate } from 'react-router-dom';
+ import server from '../environment';
+ import axios from 'axios';
+ 
+@@ -21,19 +20,13 @@ export default function Authentication() {
+   const [showForgot, setShowForgot] = React.useState(false);
+   const [forgotEmail, setForgotEmail] = React.useState('');
+   const [forgotLoading, setForgotLoading] = React.useState(false);
+-  const navigate = useNavigate();
+ 
+-  // handle token from Google OAuth redirect
++  // Google OAuth now sets the cookie server-side and redirects straight to
++  // /home on success — this page only ever sees a failure redirect.
+   React.useEffect(() => {
+     const params = new URLSearchParams(window.location.search);
+-    const token = params.get('token');
+     const error = params.get('error');
+ 
+-    if (token) {
+-      localStorage.setItem('token', token);
+-      navigate('/home');
+-    }
+-
+     if (error === 'google_failed') {
+       setError('Google sign in failed. Please try again.');
+     }
+diff --git a/frontend/src/pages/home.jsx b/frontend/src/pages/home.jsx
+index af78878..2065aca 100644
+--- a/frontend/src/pages/home.jsx
++++ b/frontend/src/pages/home.jsx
+@@ -10,7 +10,7 @@ import PersonIcon from '@mui/icons-material/Person';
+ function HomeComponent() {
+   const navigate = useNavigate();
+   const [meetingCode, setMeetingCode] = useState('');
+-  const { addToUserHistory } = useContext(AuthContext);
++  const { addToUserHistory, handleLogout } = useContext(AuthContext);
+ 
+   const handleJoin = async () => {
+     if (!meetingCode.trim()) return;
+@@ -47,7 +47,7 @@ function HomeComponent() {
+           </button>
+           <button
+             style={{ ...nb, color: '#f75555', borderColor: 'rgba(247,85,85,0.2)' }}
+-            onClick={() => { localStorage.removeItem('token'); navigate('/'); }}
++            onClick={handleLogout}
+           >
+             <LogoutIcon style={{ fontSize: '1rem' }} />
+             Logout
+diff --git a/frontend/src/utils/withAuth.jsx b/frontend/src/utils/withAuth.jsx
+index de22efe..1ca962f 100644
+--- a/frontend/src/utils/withAuth.jsx
++++ b/frontend/src/utils/withAuth.jsx
+@@ -1,23 +1,25 @@
+-import { useEffect } from "react";
++import { useEffect, useState } from "react";
+ import { useNavigate } from "react-router-dom"
++import axios from "axios";
++import server from "../environment";
+ 
+-const withAuth = (WrappedComponent ) => {
++const withAuth = (WrappedComponent) => {
+     const AuthComponent = (props) => {
+         const router = useNavigate();
+-
+-        const isAuthenticated = () => {
+-            if(localStorage.getItem("token")) {
+-                return true;
+-            } 
+-            return false;
+-        }
++        const [checking, setChecking] = useState(true);
+ 
+         useEffect(() => {
+-            if(!isAuthenticated()) {
+-                router("/auth")
+-            }
++            // The JWT lives in an httpOnly cookie now, so JS can't read it
++            // directly to check "is the user logged in" the way a
++            // localStorage check could. Instead, ask the server — it'll
++            // 401 if there's no valid cookie.
++            axios.get(`${server}/api/v1/users/me`)
++                .then(() => setChecking(false))
++                .catch(() => router("/auth"));
+         }, [])
+ 
++        if (checking) return <div className="page-loading">Loading...</div>;
++
+         return <WrappedComponent {...props} />
+     }
+ 

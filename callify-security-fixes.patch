@@ -1,0 +1,398 @@
+diff --git a/backend/package.json b/backend/package.json
+index a6160fc..00be58b 100644
+--- a/backend/package.json
++++ b/backend/package.json
+@@ -15,10 +15,11 @@
+   "dependencies": {
+     "bcrypt": "^6.0.0",
+     "cors": "^2.8.6",
+-    "crypto": "^1.0.1",
+     "dotenv": "^17.3.1",
+     "express": "^5.2.1",
++    "express-rate-limit": "^7.4.1",
+     "fabric": "^7.2.0",
++    "helmet": "^8.0.0",
+     "http-status": "^2.1.0",
+     "jsonwebtoken": "^9.0.3",
+     "mongodb": "^7.1.0",
+diff --git a/backend/src/app.js b/backend/src/app.js
+index 6cba4ad..03777e3 100644
+--- a/backend/src/app.js
++++ b/backend/src/app.js
+@@ -6,6 +6,7 @@ import { Server } from "socket.io";
+ import mongoose from "mongoose";
+ import { connectToSocket } from "./controllers/socketManager.js";
+ import cors from "cors";
++import helmet from "helmet";
+ import userRoutes from "./routes/users.routes.js";
+ import { Meeting } from "./models/meeting.model.js";
+ 
+@@ -14,6 +15,7 @@ const server = createServer(app);
+ const io = connectToSocket(server);
+ 
+ app.set("port", (process.env.PORT || 8000))
++app.use(helmet());
+ app.use(cors({
+     origin: ["https://callify-connect.vercel.app", "http://localhost:3000"],
+     methods: ["GET", "POST", "PUT", "DELETE"],
+diff --git a/backend/src/config/passport.js b/backend/src/config/passport.js
+index 091011e..3c96d73 100644
+--- a/backend/src/config/passport.js
++++ b/backend/src/config/passport.js
+@@ -23,7 +23,7 @@ passport.use(new GoogleStrategy({
+             name: profile.displayName,
+             username: profile.emails[0].value.split("@")[0], // use email prefix as username
+             email: profile.emails[0].value,
+-            password: "GOOGLE_AUTH_" + profile.id, // placeholder, user won't use this
++            authProvider: "google",
+             isVerified: true // Google already verified the email
+         });
+ 
+diff --git a/backend/src/controllers/socketManager.js b/backend/src/controllers/socketManager.js
+index cac2839..1e3a125 100644
+--- a/backend/src/controllers/socketManager.js
++++ b/backend/src/controllers/socketManager.js
+@@ -59,7 +59,6 @@ export const connectToSocket = (server) => {
+             if (found === true) {
+                 if (messages[matchingRoom] === undefined) messages[matchingRoom] = []
+                 messages[matchingRoom].push({ 'sender': sender, "data": data, "socket-id-sender": socket.id })
+-                console.log("message", matchingRoom, ":", sender, data)
+                 connections[matchingRoom].forEach(elem => {
+                     io.to(elem).emit("chat-message", data, sender, socket.id)
+                 })
+diff --git a/backend/src/controllers/users.controller.js b/backend/src/controllers/users.controller.js
+index 1d9fecb..8258e35 100644
+--- a/backend/src/controllers/users.controller.js
++++ b/backend/src/controllers/users.controller.js
+@@ -11,9 +11,9 @@ const login = async (req, res) => {
+ 
+     const { username, password } = req.body;
+ 
+-    // 🔥 ADD HERE (TOP)
+-    console.log("INPUT:", username, password);
+-    console.log("LOGIN API HIT");
++    if (typeof username !== "string" || typeof password !== "string") {
++        return res.status(400).json({ message: "Invalid input" });
++    }
+ 
+     if (!username || !password) {
+         return res.status(400).json({ message: "Please Provide" })
+@@ -22,9 +22,6 @@ const login = async (req, res) => {
+     try {
+         const user = await User.findOne({ username });
+ 
+-        // 🔥 ADD HERE
+-        console.log("USER FROM DB:", user);
+-
+         if (!user) {
+             return res.status(404).json({ message: "User Not Found" })
+         }
+@@ -35,9 +32,6 @@ const login = async (req, res) => {
+ 
+         const isPasswordCorrect = await bcrypt.compare(password, user.password);
+ 
+-        // 🔥 ADD HERE
+-        console.log("PASSWORD MATCH:", isPasswordCorrect);
+-
+         if (!isPasswordCorrect) {
+             return res.status(401).json({ message: "Invalid Username or password" })
+         }
+@@ -54,30 +48,38 @@ const login = async (req, res) => {
+         return res.status(200).json({ token });
+ 
+     } catch (e) {
+-        return res.status(500).json({ message: e.message })
++        console.error("Login error:", e);
++        return res.status(500).json({ message: "Something went wrong. Please try again." })
+     }
+ }
+ 
+ 
+ const register = async (req, res) => {
+     const { name, username, email, password } = req.body;
+-    console.log("Register hit:", name, username, email, password); // add this
+-    console.log("REGISTER API HIT");
++
++    if (
++        typeof name !== "string" || typeof username !== "string" ||
++        typeof email !== "string" || typeof password !== "string"
++    ) {
++        return res.status(400).json({ message: "Invalid input" });
++    }
+ 
+     try {
+         if (!name || !username || !email || !password) {
+             return res.status(400).json({ message: "All fields are required" });
+         }
+ 
++        if (password.length < 6) {
++            return res.status(400).json({ message: "Password must be at least 6 characters" });
++        }
++
+         const existingUser = await User.findOne({ username });
+-        console.log("Existing user:", existingUser); // add this
+-        
++
+         if (existingUser) {
+             return res.status(httpStatus.CONFLICT).json({ message: "User already exists" });
+         }
+ 
+         const existingEmail = await User.findOne({ email });
+-        console.log("Existing email:", existingEmail); // add this
+ 
+         if (existingEmail) {
+             return res.status(httpStatus.CONFLICT).json({ message: "Email already in use" });
+@@ -109,8 +111,8 @@ const register = async (req, res) => {
+         res.status(201).json({ message: "Verification email sent" });
+ 
+     } catch (e) {
+-        console.log("Register error:", e); // add this
+-        res.status(500).json({ message: e.message })
++        console.error("Register error:", e);
++        res.status(500).json({ message: "Something went wrong. Please try again." })
+     }
+ }
+ 
+@@ -141,14 +143,15 @@ const getUserHistory = async (req, res) => {
+ 
+     try {
+         // ✅ user comes from JWT middleware
+-        const username = req.user.username;
++        const userId = req.user._id;
+ 
+-        const meetings = await Meeting.find({ user_id: username });
++        const meetings = await Meeting.find({ user_id: userId });
+ 
+         res.json(meetings);
+ 
+     } catch (e) {
+-        res.status(500).json({ message: e.message });
++        console.error("Get history error:", e);
++        res.status(500).json({ message: "Something went wrong. Please try again." });
+     }
+ }
+ 
+@@ -161,10 +164,10 @@ const addToHistory = async (req, res) => {
+ 
+     try {
+         // ✅ user comes from JWT middleware
+-        const username = req.user.username;
++        const userId = req.user._id;
+ 
+         const newMeeting = new Meeting({
+-            user_id: username,
++            user_id: userId,
+             meetingCode: meeting_code
+         })
+ 
+@@ -172,7 +175,8 @@ const addToHistory = async (req, res) => {
+ 
+         res.status(201).json({ message: "Added code to history" })
+     } catch (e) {
+-        res.status(500).json({ message: e.message });
++        console.error("Add history error:", e);
++        res.status(500).json({ message: "Something went wrong. Please try again." });
+     }
+ }
+ 
+@@ -186,17 +190,18 @@ const getMe = async (req, res) => {
+             name: user.name,
+             username: user.username,
+             email: user.email,
+-            isGoogleUser: user.password?.startsWith("GOOGLE_AUTH_")
++            isGoogleUser: user.authProvider === "google"
+         });
+     } catch (e) {
+-        res.status(500).json({ message: e.message });
++        console.error("Get me error:", e);
++        res.status(500).json({ message: "Something went wrong. Please try again." });
+     }
+ };
+ 
+ const resendVerification = async (req, res) => {
+     const { email } = req.body;
+ 
+-    if (!email) {
++    if (typeof email !== "string" || !email) {
+         return res.status(400).json({ message: "Email is required" });
+     }
+ 
+@@ -222,14 +227,15 @@ const resendVerification = async (req, res) => {
+         return res.status(200).json({ message: "Verification email resent" });
+ 
+     } catch (e) {
+-        return res.status(500).json({ message: e.message });
++        console.error("Resend verification error:", e);
++        return res.status(500).json({ message: "Something went wrong. Please try again." });
+     }
+ };
+ 
+ const forgotPassword = async (req, res) => {
+     const { email } = req.body;
+ 
+-    if (!email) {
++    if (typeof email !== "string" || !email) {
+         return res.status(400).json({ message: "Email is required" });
+     }
+ 
+@@ -252,7 +258,8 @@ const forgotPassword = async (req, res) => {
+         return res.status(200).json({ message: "If this email exists, a reset link has been sent" });
+ 
+     } catch (e) {
+-        return res.status(500).json({ message: e.message });
++        console.error("Forgot password error:", e);
++        return res.status(500).json({ message: "Something went wrong. Please try again." });
+     }
+ };
+ 
+@@ -289,6 +296,13 @@ const updateProfile = async (req, res) => {
+         return res.status(400).json({ message: "Nothing to update" });
+     }
+ 
++    if (
++        (name !== undefined && typeof name !== "string") ||
++        (username !== undefined && typeof username !== "string")
++    ) {
++        return res.status(400).json({ message: "Invalid input" });
++    }
++
+     try {
+         const userId = req.user._id || req.user.id;
+ 
+@@ -316,7 +330,8 @@ const updateProfile = async (req, res) => {
+         });
+ 
+     } catch (e) {
+-        return res.status(500).json({ message: e.message });
++        console.error("Update profile error:", e);
++        return res.status(500).json({ message: "Something went wrong. Please try again." });
+     }
+ };
+ 
+@@ -331,7 +346,7 @@ const deleteAccount = async (req, res) => {
+         }
+ 
+         // Google OAuth users don't have a real password
+-        if (!user.password.startsWith("GOOGLE_AUTH_")) {
++        if (user.authProvider !== "google") {
+             if (!password) {
+                 return res.status(400).json({ message: "Password is required" });
+             }
+@@ -342,7 +357,7 @@ const deleteAccount = async (req, res) => {
+         }
+ 
+         // delete all meeting history
+-        await Meeting.deleteMany({ user_id: user.username });
++        await Meeting.deleteMany({ user_id: user._id });
+ 
+         // delete user
+         await User.findByIdAndDelete(req.user._id);
+@@ -350,7 +365,8 @@ const deleteAccount = async (req, res) => {
+         return res.status(200).json({ message: "Account deleted successfully" });
+ 
+     } catch (e) {
+-        return res.status(500).json({ message: e.message });
++        console.error("Delete account error:", e);
++        return res.status(500).json({ message: "Something went wrong. Please try again." });
+     }
+ };
+ 
+diff --git a/backend/src/models/meeting.model.js b/backend/src/models/meeting.model.js
+index aa0a21f..04750fa 100644
+--- a/backend/src/models/meeting.model.js
++++ b/backend/src/models/meeting.model.js
+@@ -3,7 +3,7 @@ import mongoose, { Schema } from "mongoose";
+ 
+ const meetingSchema = new Schema(
+     {
+-        user_id: { type: String },
++        user_id: { type: Schema.Types.ObjectId, ref: "User", required: true },
+         meetingCode: { type: String, required: true },
+         date: { type: Date, default: Date.now, required: true }
+     }
+diff --git a/backend/src/models/user.model.js b/backend/src/models/user.model.js
+index 42b6ed7..07e3b00 100644
+--- a/backend/src/models/user.model.js
++++ b/backend/src/models/user.model.js
+@@ -3,8 +3,12 @@ import mongoose from "mongoose";
+ const userSchema = new mongoose.Schema({
+     name: { type: String, required: true },
+     username: { type: String, required: true, unique: true },
+-    email: { type: String, required: true, unique: true }, // ⚠️ ADD THIS BACK
+-    password: { type: String, required: true },
++    email: { type: String, required: true, unique: true },
++    password: {
++        type: String,
++        required: function () { return this.authProvider === "local"; }
++    },
++    authProvider: { type: String, enum: ["local", "google"], default: "local" },
+     isVerified: { type: Boolean, default: false },
+     verificationToken: { type: String },
+     verificationTokenExpiry: { type: Date },
+diff --git a/backend/src/routes/users.routes.js b/backend/src/routes/users.routes.js
+index 6fc7b8e..91dddc3 100644
+--- a/backend/src/routes/users.routes.js
++++ b/backend/src/routes/users.routes.js
+@@ -1,21 +1,36 @@
+ import { Router } from "express";
+ import passport from "passport";
+ import jwt from "jsonwebtoken";
++import rateLimit from "express-rate-limit";
+ import { addToHistory, getUserHistory, login, register, getMe, verifyEmail, resendVerification, forgotPassword, resetPassword, updateProfile, deleteAccount } from "../controllers/users.controller.js";
+ import { verifyToken } from "../middleware/auth.js";
+ 
+ const router = Router();
+ 
+-router.route("/login").post(login);
+-router.route("/register").post(register);
++// 10 attempts per 15 min per IP — slows down brute force / credential stuffing
++const loginLimiter = rateLimit({
++    windowMs: 15 * 60 * 1000,
++    max: 10,
++    message: { message: "Too many attempts. Please try again later." }
++});
++
++// 5 per hour per IP — stops email-bombing via forgot-password / resend-verification
++const emailLimiter = rateLimit({
++    windowMs: 60 * 60 * 1000,
++    max: 5,
++    message: { message: "Too many requests. Please try again later." }
++});
++
++router.route("/login").post(loginLimiter, login);
++router.route("/register").post(loginLimiter, register);
+ router.route("/history")
+     .get(verifyToken, getUserHistory)
+     .post(verifyToken, addToHistory);
+ 
+ router.route("/me").get(verifyToken, getMe);
+ router.get("/verify/:token", verifyEmail);
+-router.post("/resend-verification", resendVerification);
+-router.post("/forgot-password", forgotPassword);
++router.post("/resend-verification", emailLimiter, resendVerification);
++router.post("/forgot-password", emailLimiter, forgotPassword);
+ router.post("/reset-password/:token", resetPassword);
+ router.put("/profile", verifyToken, updateProfile);
+ router.delete("/profile", verifyToken, deleteAccount);
+diff --git a/backend/src/utils/sendEmail.js b/backend/src/utils/sendEmail.js
+index 2d81a65..413e868 100644
+--- a/backend/src/utils/sendEmail.js
++++ b/backend/src/utils/sendEmail.js
+@@ -148,7 +148,7 @@ export const sendVerificationEmail = async (to, token) => {
+     const transporter = createTransporter();
+     const link = `${process.env.CLIENT_URL}/verify/${token}`;
+     const info = await transporter.sendMail({
+-        from: '"Callify" <devangsingh3007@gmail.com>',
++        from: `"Callify" <${process.env.EMAIL_FROM}>`,
+         to,
+         subject: 'Verify your email — Callify',
+         text: `Verify your email here: ${link}`,
+@@ -160,7 +160,7 @@ export const sendResetPasswordEmail = async (to, token) => {
+     const transporter = createTransporter();
+     const link = `${process.env.CLIENT_URL}/reset-password/${token}`;
+     const info = await transporter.sendMail({
+-        from: '"Callify" <devangsingh3007@gmail.com>',
++        from: `"Callify" <${process.env.EMAIL_FROM}>`,
+         to,
+         subject: 'Reset your password — Callify',
+         html: `

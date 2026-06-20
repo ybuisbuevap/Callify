@@ -1,10 +1,23 @@
 import { Server } from "socket.io"
+import logger from "../utils/logger.js";
 
 let connections = {}
 let messages = {}
 let timeOnline = {}
 let usernames = {} // ← store username per socket id
 let whiteboardState = {} // ← store whiteboard state per room
+
+// Wraps a socket event handler so a thrown error (e.g. from a malformed
+// or unexpected client payload) is logged and only disrupts that one
+// handler call — instead of propagating up and crashing the whole
+// Node process for every connected user.
+const safeHandler = (eventName, handler) => async (...args) => {
+    try {
+        await handler(...args);
+    } catch (err) {
+        logger.error({ err, event: eventName }, "Socket handler error");
+    }
+};
 
 export const connectToSocket = (server) => {
     const io = new Server(server, {
@@ -17,9 +30,9 @@ export const connectToSocket = (server) => {
 
     io.on("connection", (socket) => {
 
-        console.log("SOMETHING CONNECTED")
+        logger.debug({ socketId: socket.id }, "Client connected")
 
-        socket.on("join-call", (path, username) => { // ← accept username
+        socket.on("join-call", safeHandler("join-call", (path, username) => { // ← accept username
             if (connections[path] === undefined) connections[path] = []
             connections[path].push(socket.id)
             timeOnline[socket.id] = new Date();
@@ -43,13 +56,13 @@ export const connectToSocket = (server) => {
             if (whiteboardState[path]) {
                 io.to(socket.id).emit("whiteboard-sync", { json: whiteboardState[path] });
             }
-        })
+        }))
 
-        socket.on("signal", (toId, message) => {
+        socket.on("signal", safeHandler("signal", (toId, message) => {
             io.to(toId).emit("signal", socket.id, message);
-        })
+        }))
 
-        socket.on("chat-message", (data, sender) => {
+        socket.on("chat-message", safeHandler("chat-message", (data, sender) => {
             const [matchingRoom, found] = Object.entries(connections)
                 .reduce(([room, isFound], [roomKey, roomValue]) => {
                     if (!isFound && roomValue.includes(socket.id)) return [roomKey, true];
@@ -59,14 +72,13 @@ export const connectToSocket = (server) => {
             if (found === true) {
                 if (messages[matchingRoom] === undefined) messages[matchingRoom] = []
                 messages[matchingRoom].push({ 'sender': sender, "data": data, "socket-id-sender": socket.id })
-                console.log("message", matchingRoom, ":", sender, data)
                 connections[matchingRoom].forEach(elem => {
                     io.to(elem).emit("chat-message", data, sender, socket.id)
                 })
             }
-        })
+        }))
 
-        socket.on("whiteboard-draw", (data) => {
+        socket.on("whiteboard-draw", safeHandler("whiteboard-draw", (data) => {
             const [matchingRoom, found] = Object.entries(connections)
                 .reduce(([room, isFound], [roomKey, roomValue]) => {
                     if (!isFound && roomValue.includes(socket.id)) return [roomKey, true];
@@ -80,9 +92,9 @@ export const connectToSocket = (server) => {
                     }
                 });
             }
-        });
+        }));
 
-        socket.on("toggle-whiteboard", (data) => {
+        socket.on("toggle-whiteboard", safeHandler("toggle-whiteboard", (data) => {
             const [room, found] = Object.entries(connections)
                 .reduce(([r, f], [key, val]) => {
                     if (!f && val.includes(socket.id)) return [key, true];
@@ -94,9 +106,9 @@ export const connectToSocket = (server) => {
                     io.to(id).emit("toggle-whiteboard", data);
                 });
             }
-        });
+        }));
 
-        socket.on("toggle-screen", (data) => {
+        socket.on("toggle-screen", safeHandler("toggle-screen", (data) => {
             const [room, found] = Object.entries(connections)
                 .reduce(([r, f], [key, val]) => {
                     if (!f && val.includes(socket.id)) return [key, true];
@@ -108,9 +120,9 @@ export const connectToSocket = (server) => {
                     io.to(id).emit("toggle-screen", data);
                 });
             }
-        });
+        }));
 
-        socket.on("whiteboard-sync", (data) => {
+        socket.on("whiteboard-sync", safeHandler("whiteboard-sync", (data) => {
             const [matchingRoom, found] = Object.entries(connections)
                 .reduce(([room, isFound], [roomKey, roomValue]) => {
                     if (!isFound && roomValue.includes(socket.id)) return [roomKey, true];
@@ -122,7 +134,7 @@ export const connectToSocket = (server) => {
                     if (elem !== socket.id) io.to(elem).emit("whiteboard-sync", data);
                 });
             }
-        });
+        }));
 
         // socket.on("whiteboard-clear", (data) => {
         //     const [matchingRoom, found] = Object.entries(connections)
@@ -140,7 +152,7 @@ export const connectToSocket = (server) => {
         //     }
         // });
 
-        socket.on("reaction", (data) => {
+        socket.on("reaction", safeHandler("reaction", (data) => {
             const [room, found] = Object.entries(connections)
                 .reduce(([r, f], [key, val]) => {
                     if (!f && val.includes(socket.id)) return [key, true];
@@ -153,9 +165,9 @@ export const connectToSocket = (server) => {
                         io.to(id).emit("reaction", { ...data, socketId: socket.id });
                 });
             }
-        });
+        }));
 
-        socket.on("raise-hand", (data) => {
+        socket.on("raise-hand", safeHandler("raise-hand", (data) => {
             const [room, found] = Object.entries(connections)
                 .reduce(([r, f], [key, val]) => {
                     if (!f && val.includes(socket.id)) return [key, true];
@@ -167,9 +179,9 @@ export const connectToSocket = (server) => {
                     io.to(id).emit("raise-hand", { ...data, socketId: socket.id });
                 });
             }
-        });
+        }));
 
-        socket.on("whiteboard-save", (data) => {
+        socket.on("whiteboard-save", safeHandler("whiteboard-save", (data) => {
             const [room, found] = Object.entries(connections)
                 .reduce(([r, f], [key, val]) => {
                     if (!f && val.includes(socket.id)) return [key, true];
@@ -177,10 +189,10 @@ export const connectToSocket = (server) => {
                 }, ['', false]);
 
             if (found) whiteboardState[room] = data.json;
-        });
+        }));
 
         // also clear saved state when whiteboard is cleared
-        socket.on("whiteboard-clear", (data) => {
+        socket.on("whiteboard-clear", safeHandler("whiteboard-clear", (data) => {
             const [room, found] = Object.entries(connections)
                 .reduce(([r, f], [key, val]) => {
                     if (!f && val.includes(socket.id)) return [key, true];
@@ -193,9 +205,9 @@ export const connectToSocket = (server) => {
                     io.to(id).emit("whiteboard-clear", data);
                 });
             }
-        });
+        }));
 
-        socket.on("disconnect", () => {
+        socket.on("disconnect", safeHandler("disconnect", () => {
             delete usernames[socket.id]; // ← clean up on disconnect
             var key
             for (const [k, v] of JSON.parse(JSON.stringify(Object.entries(connections)))) {
@@ -211,7 +223,7 @@ export const connectToSocket = (server) => {
                     }
                 }
             }
-        })
+        }))
     })
 
     return io;

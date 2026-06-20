@@ -10,7 +10,7 @@ import PersonIcon from '@mui/icons-material/Person';
 function HomeComponent() {
   const navigate = useNavigate();
   const [meetingCode, setMeetingCode] = useState('');
-  const { addToUserHistory } = useContext(AuthContext);
+  const { addToUserHistory, handleLogout } = useContext(AuthContext);
 
   const handleJoin = async () => {
     if (!meetingCode.trim()) return;
@@ -47,7 +47,7 @@ function HomeComponent() {
           </button>
           <button
             style={{ ...nb, color: '#f75555', borderColor: 'rgba(247,85,85,0.2)' }}
-            onClick={() => { localStorage.removeItem('token'); navigate('/'); }}
+            onClick={handleLogout}
           >
             <LogoutIcon style={{ fontSize: '1rem' }} />
             Logout

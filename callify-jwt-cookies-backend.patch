@@ -1,0 +1,281 @@
+diff --git a/backend/package.json b/backend/package.json
+index 50a6c40..1ae3b96 100644
+--- a/backend/package.json
++++ b/backend/package.json
+@@ -14,6 +14,7 @@
+   },
+   "dependencies": {
+     "bcrypt": "^6.0.0",
++    "cookie-parser": "^1.4.7",
+     "cors": "^2.8.6",
+     "dotenv": "^17.3.1",
+     "express": "^5.2.1",
+diff --git a/backend/scripts/migrate-meeting-user-id.js b/backend/scripts/migrate-meeting-user-id.js
+new file mode 100644
+index 0000000..771ddda
+--- /dev/null
++++ b/backend/scripts/migrate-meeting-user-id.js
+@@ -0,0 +1,123 @@
++/**
++ * Migrates Meeting.user_id from the old (mutable, reusable) username
++ * string to the new immutable User ObjectId.
++ *
++ * Background: before the IDOR fix, meeting history was keyed by username.
++ * If a user renamed themselves and someone else later registered their old
++ * username, that new person's history lookup would return the *previous*
++ * owner's meetings. This script backfills existing records to the safe,
++ * immutable User._id scheme.
++ *
++ * IMPORTANT: this reads/writes the raw MongoDB collection directly rather
++ * than through the Mongoose model. The live schema now declares `user_id`
++ * as ObjectId — if we queried through the model, Mongoose would try to
++ * cast every legacy username string into an ObjectId during hydration and
++ * throw a CastError before we ever got to inspect it.
++ *
++ * USAGE:
++ *   node scripts/migrate-meeting-user-id.js                  → dry run (default, makes no changes)
++ *   node scripts/migrate-meeting-user-id.js --apply           → actually performs the migration
++ *   node scripts/migrate-meeting-user-id.js --apply --delete-orphaned
++ *                                                              → also deletes records whose old
++ *                                                                username no longer matches anyone
++ *
++ * Always run without --apply first and read the report before applying.
++ */
++
++import "dotenv/config";
++import mongoose from "mongoose";
++
++const DRY_RUN = !process.argv.includes("--apply");
++const DELETE_ORPHANED = process.argv.includes("--delete-orphaned");
++
++async function run() {
++    if (!process.env.MONGO_URI) {
++        console.error("MONGO_URI is not set — check your .env file.");
++        process.exit(1);
++    }
++
++    await mongoose.connect(process.env.MONGO_URI);
++    const db = mongoose.connection.db;
++    const meetings = db.collection("meetings");
++    const users = db.collection("users");
++
++    console.log(`Connected to database: ${mongoose.connection.name}`);
++    console.log(`Mode: ${DRY_RUN ? "DRY RUN — no changes will be made" : "APPLY"}${DELETE_ORPHANED ? " (+ delete-orphaned)" : ""}\n`);
++
++    const allMeetings = await meetings.find({}).toArray();
++
++    let alreadyValid = 0, migrated = 0, orphaned = 0, deleted = 0;
++    const orphanedDetails = [];
++
++    for (const meeting of allMeetings) {
++        const userId = meeting.user_id;
++
++        // Already migrated — the raw stored value is a real ObjectId.
++        if (userId instanceof mongoose.Types.ObjectId) {
++            alreadyValid++;
++            continue;
++        }
++
++        // No user_id at all (very old / malformed record) — treat as orphaned,
++        // don't risk an ambiguous lookup with a null/empty value.
++        if (userId == null || userId === "") {
++            orphaned++;
++            orphanedDetails.push({ meetingId: meeting._id, oldUsername: String(userId), code: meeting.meetingCode, date: meeting.date });
++            if (!DRY_RUN && DELETE_ORPHANED) {
++                await meetings.deleteOne({ _id: meeting._id });
++                deleted++;
++            }
++            continue;
++        }
++
++        // Legacy record — user_id is a username string. Look up whoever
++        // currently holds that username.
++        const matchedUser = await users.findOne({ username: userId });
++
++        if (matchedUser) {
++            console.log(`Meeting ${meeting._id} | code ${meeting.meetingCode} | "${userId}" -> current user ${matchedUser.username} (${matchedUser._id})`);
++            if (!DRY_RUN) {
++                await meetings.updateOne(
++                    { _id: meeting._id },
++                    { $set: { user_id: matchedUser._id } }
++                );
++            }
++            migrated++;
++        } else {
++            orphaned++;
++            orphanedDetails.push({ meetingId: meeting._id, oldUsername: userId, code: meeting.meetingCode, date: meeting.date });
++            if (!DRY_RUN && DELETE_ORPHANED) {
++                await meetings.deleteOne({ _id: meeting._id });
++                deleted++;
++            }
++        }
++    }
++
++    console.log("\n--- Summary ---");
++    console.log(`Total meetings scanned:        ${allMeetings.length}`);
++    console.log(`Already valid (ObjectId):      ${alreadyValid}`);
++    console.log(`Migrated to current user:      ${migrated}`);
++    console.log(`Orphaned (no matching user):   ${orphaned}`);
++    if (!DRY_RUN && DELETE_ORPHANED) console.log(`Orphaned records deleted:      ${deleted}`);
++
++    if (orphanedDetails.length > 0) {
++        console.log("\nOrphaned records — old username no longer matches any current user:");
++        orphanedDetails.forEach(o =>
++            console.log(`  - Meeting ${o.meetingId} | old user_id: "${o.oldUsername}" | code: ${o.code} | date: ${o.date}`)
++        );
++        if (!DELETE_ORPHANED) {
++            console.log("\nThese were left untouched. Re-run with --delete-orphaned to remove them, or leave them as-is — they're harmless dead records, just no longer reachable by anyone's history view.");
++        }
++    }
++
++    if (DRY_RUN) {
++        console.log("\nThis was a DRY RUN — no changes were made. Review the report above, then re-run with --apply to actually update the database.");
++    }
++
++    await mongoose.disconnect();
++}
++
++run().catch(err => {
++    console.error("Migration failed:", err);
++    process.exit(1);
++});
+diff --git a/backend/src/app.js b/backend/src/app.js
+index 70c0307..cc24e9d 100644
+--- a/backend/src/app.js
++++ b/backend/src/app.js
+@@ -6,6 +6,7 @@ import { Server } from "socket.io";
+ import mongoose from "mongoose";
+ import { connectToSocket } from "./controllers/socketManager.js";
+ import cors from "cors";
++import cookieParser from "cookie-parser";
+ import helmet from "helmet";
+ import userRoutes from "./routes/users.routes.js";
+ import { Meeting } from "./models/meeting.model.js";
+@@ -39,6 +40,7 @@ app.use(cors({
+ }));
+ app.use(express.json({ limit: "40kb" }));
+ app.use(express.urlencoded({ limit: "40kb", extended: true }));
++app.use(cookieParser());
+ app.use(passport.initialize());
+ app.use("/api/v1/users", userRoutes);
+ 
+diff --git a/backend/src/controllers/users.controller.js b/backend/src/controllers/users.controller.js
+index 4e1f0e9..84cd50d 100644
+--- a/backend/src/controllers/users.controller.js
++++ b/backend/src/controllers/users.controller.js
+@@ -7,6 +7,7 @@ import { Meeting } from "../models/meeting.model.js";
+ import nodemailer from "nodemailer";
+ import { sendVerificationEmail, sendResetPasswordEmail } from "../utils/sendEmail.js";
+ import logger from "../utils/logger.js";
++import { authCookieOptions, clearAuthCookieOptions } from "../utils/cookieOptions.js";
+ 
+ const login = async (req, res) => {
+ 
+@@ -46,7 +47,8 @@ const login = async (req, res) => {
+             { expiresIn: "1d" }
+         );
+ 
+-        return res.status(200).json({ token });
++        res.cookie("token", token, authCookieOptions);
++        return res.status(200).json({ message: "Logged in successfully" });
+ 
+     } catch (e) {
+         logger.error({ err: e }, "Login error");
+@@ -54,6 +56,12 @@ const login = async (req, res) => {
+     }
+ }
+ 
++// httpOnly cookies can't be cleared by frontend JS — the server has to do it.
++const logout = (req, res) => {
++    res.clearCookie("token", clearAuthCookieOptions);
++    return res.status(200).json({ message: "Logged out successfully" });
++}
++
+ 
+ const register = async (req, res) => {
+     const { name, username, email, password } = req.body;
+@@ -371,4 +379,4 @@ const deleteAccount = async (req, res) => {
+     }
+ };
+ 
+-export { login, register, getUserHistory, addToHistory, getMe, verifyEmail, resendVerification, forgotPassword, resetPassword, updateProfile, deleteAccount };
+\ No newline at end of file
++export { login, logout, register, getUserHistory, addToHistory, getMe, verifyEmail, resendVerification, forgotPassword, resetPassword, updateProfile, deleteAccount };
+\ No newline at end of file
+diff --git a/backend/src/middleware/auth.js b/backend/src/middleware/auth.js
+index 150fa2a..f52b018 100644
+--- a/backend/src/middleware/auth.js
++++ b/backend/src/middleware/auth.js
+@@ -3,7 +3,7 @@ import User from "../models/user.model.js";
+ 
+ export const verifyToken = async (req, res, next) => {
+     try {
+-        const token = req.headers.authorization?.split(" ")[1];
++        const token = req.cookies?.token;
+ 
+         if (!token) {
+             return res.status(401).json({ message: "No token provided" });
+diff --git a/backend/src/routes/users.routes.js b/backend/src/routes/users.routes.js
+index 91dddc3..c56959c 100644
+--- a/backend/src/routes/users.routes.js
++++ b/backend/src/routes/users.routes.js
+@@ -2,8 +2,9 @@ import { Router } from "express";
+ import passport from "passport";
+ import jwt from "jsonwebtoken";
+ import rateLimit from "express-rate-limit";
+-import { addToHistory, getUserHistory, login, register, getMe, verifyEmail, resendVerification, forgotPassword, resetPassword, updateProfile, deleteAccount } from "../controllers/users.controller.js";
++import { addToHistory, getUserHistory, login, logout, register, getMe, verifyEmail, resendVerification, forgotPassword, resetPassword, updateProfile, deleteAccount } from "../controllers/users.controller.js";
+ import { verifyToken } from "../middleware/auth.js";
++import { authCookieOptions } from "../utils/cookieOptions.js";
+ 
+ const router = Router();
+ 
+@@ -22,6 +23,7 @@ const emailLimiter = rateLimit({
+ });
+ 
+ router.route("/login").post(loginLimiter, login);
++router.post("/logout", logout);
+ router.route("/register").post(loginLimiter, register);
+ router.route("/history")
+     .get(verifyToken, getUserHistory)
+@@ -47,7 +49,12 @@ router.get("/auth/google/callback",
+             process.env.JWT_SECRET,
+             { expiresIn: "1d" }
+         );
+-        res.redirect(`${process.env.CLIENT_URL}/auth?token=${token}`);
++        // Set the cookie directly instead of passing the JWT in the redirect
++        // URL — a token in the URL can end up in browser history, the Vercel
++        // edge/CDN access logs, or a Referer header if any third-party
++        // resource loads on that page.
++        res.cookie("token", token, authCookieOptions);
++        res.redirect(`${process.env.CLIENT_URL}/home`);
+     }
+ );
+ 
+diff --git a/backend/src/utils/cookieOptions.js b/backend/src/utils/cookieOptions.js
+new file mode 100644
+index 0000000..1f473a8
+--- /dev/null
++++ b/backend/src/utils/cookieOptions.js
+@@ -0,0 +1,21 @@
++const isProd = process.env.NODE_ENV === "production";
++
++// Frontend (Vercel) and backend (Render) are different domains in production,
++// which makes this a cross-site request — cookies need SameSite=None + Secure
++// for the browser to send them at all. In local dev, frontend and backend are
++// both on "localhost" (just different ports), which counts as same-site, so
++// the stricter/simpler Lax + non-Secure settings work fine over plain HTTP.
++export const authCookieOptions = {
++    httpOnly: true,
++    secure: isProd,
++    sameSite: isProd ? "none" : "lax",
++    maxAge: 24 * 60 * 60 * 1000, // 1 day — matches the JWT's own expiry
++};
++
++// Used when clearing the cookie on logout — must match the same attributes
++// used when it was set, or the browser won't recognize it as the same cookie.
++export const clearAuthCookieOptions = {
++    httpOnly: true,
++    secure: isProd,
++    sameSite: isProd ? "none" : "lax",
++};

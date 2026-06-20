@@ -1,0 +1,32 @@
+diff --git a/frontend/src/App.css b/frontend/src/App.css
+index 527d310..c6fd866 100644
+--- a/frontend/src/App.css
++++ b/frontend/src/App.css
+@@ -132,21 +132,19 @@ body {
+     radial-gradient(0.5px 0.5px at 76% 59%, rgba(255, 255, 0, 0.5), transparent),
+     radial-gradient(0.5px 0.5px at 89% 37%, rgba(255, 255, 100, 0.5), transparent),
+     radial-gradient(0.5px 0.5px at 4% 91%, rgba(255, 235, 59, 0.5), transparent);
+-  background-size: 200% 200%;
+-  background-position: 0% 0%;
++  transform: translateZ(0);
++  will-change: transform, opacity;
+   animation: drift 30s ease infinite, twinkle 4s ease-in-out infinite;
+   z-index: 0;
+   pointer-events: none;
+ }
+ 
+ @keyframes drift {
+-  0%, 100% { 
+-    background-position: 0% 0%; 
+-    opacity: 1;
++  0%, 100% {
++    transform: translate(0, 0);
+   }
+-  50% { 
+-    background-position: 100% 100%;
+-    opacity: 0.85;
++  50% {
++    transform: translate(-12px, -12px);
+   }
+ }
+ 

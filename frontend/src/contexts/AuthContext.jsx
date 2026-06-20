@@ -31,11 +31,22 @@ export const AuthProvider = ({ children }) => {
         try {
             let request = await client.post("/login", { username, password });
             if (request.status === 200) {
-                localStorage.setItem("token", request.data.token);
                 router("/home");
             }
         } catch (err) {
             throw err;
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await client.post("/logout");
+        } catch (err) {
+            // even if the request fails, proceed to clear local state —
+            // an expired/invalid cookie shouldn't trap the user on this page
+        } finally {
+            setUserData({});
+            router("/");
         }
     };
 
@@ -50,9 +61,7 @@ export const AuthProvider = ({ children }) => {
 
     const getHistoryOfUser = async () => {
         try {
-            let request = await client.get("/history", {
-                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-            });
+            let request = await client.get("/history");
             return request.data;
         } catch (err) {
             throw err;
@@ -61,10 +70,7 @@ export const AuthProvider = ({ children }) => {
 
     const addToUserHistory = async (meetingCode) => {
         try {
-            let request = await client.post("/history",
-                { meeting_code: meetingCode },
-                { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-            );
+            let request = await client.post("/history", { meeting_code: meetingCode });
             return request;
         } catch (e) {
             throw e;
@@ -73,10 +79,7 @@ export const AuthProvider = ({ children }) => {
 
     const handleUpdateProfile = async (name, username) => {
     try {
-        const request = await client.put("/profile",
-            { name, username },
-            { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-        );
+        const request = await client.put("/profile", { name, username });
         return request.data;
     } catch (err) {
         throw err;
@@ -85,7 +88,7 @@ export const AuthProvider = ({ children }) => {
 
     const data = {
         userData, setUserData, addToUserHistory, getHistoryOfUser,
-        handleRegister, handleLogin, handleResendVerification, handleUpdateProfile
+        handleRegister, handleLogin, handleLogout, handleResendVerification, handleUpdateProfile
     };
 
     return (

@@ -156,10 +156,8 @@ export default function VideoMeetComponent() {
 
     useEffect(() => {
         if (username) return; // already set from URL (guest)
-        const token = localStorage.getItem('token');
-        if (!token) return;
         fetch(`${server}/api/v1/users/me`, {
-            headers: { Authorization: `Bearer ${token}` }
+            credentials: 'include'
         })
         .then(res => res.json())
         .then(data => { if (data.name) setUsername(data.name); })

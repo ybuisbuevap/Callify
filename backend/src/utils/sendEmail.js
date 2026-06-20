@@ -148,7 +148,7 @@ export const sendVerificationEmail = async (to, token) => {
     const transporter = createTransporter();
     const link = `${process.env.CLIENT_URL}/verify/${token}`;
     const info = await transporter.sendMail({
-        from: '"Callify" <devangsingh3007@gmail.com>',
+        from: `"Callify" <${process.env.EMAIL_FROM}>`,
         to,
         subject: 'Verify your email — Callify',
         text: `Verify your email here: ${link}`,
@@ -160,7 +160,7 @@ export const sendResetPasswordEmail = async (to, token) => {
     const transporter = createTransporter();
     const link = `${process.env.CLIENT_URL}/reset-password/${token}`;
     const info = await transporter.sendMail({
-        from: '"Callify" <devangsingh3007@gmail.com>',
+        from: `"Callify" <${process.env.EMAIL_FROM}>`,
         to,
         subject: 'Reset your password — Callify',
         html: `

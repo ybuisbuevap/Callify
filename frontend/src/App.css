@@ -21,6 +21,19 @@ body {
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
+/* Lazy-loaded route fallback */
+.page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100%;
+  background: var(--bg);
+  color: var(--text-2);
+  font-family: var(--font);
+  font-size: 0.95rem;
+}
+
 /* Apply starry background to all page containers */
 .landingPageContainer,
 .authPageContainer,
@@ -119,21 +132,19 @@ body {
     radial-gradient(0.5px 0.5px at 76% 59%, rgba(255, 255, 0, 0.5), transparent),
     radial-gradient(0.5px 0.5px at 89% 37%, rgba(255, 255, 100, 0.5), transparent),
     radial-gradient(0.5px 0.5px at 4% 91%, rgba(255, 235, 59, 0.5), transparent);
-  background-size: 200% 200%;
-  background-position: 0% 0%;
+  transform: translateZ(0);
+  will-change: transform, opacity;
   animation: drift 30s ease infinite, twinkle 4s ease-in-out infinite;
   z-index: 0;
   pointer-events: none;
 }
 
 @keyframes drift {
-  0%, 100% { 
-    background-position: 0% 0%; 
-    opacity: 1;
+  0%, 100% {
+    transform: translate(0, 0);
   }
-  50% { 
-    background-position: 100% 100%;
-    opacity: 0.85;
+  50% {
+    transform: translate(-12px, -12px);
   }
 }
 
