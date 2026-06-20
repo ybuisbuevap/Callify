@@ -12,7 +12,7 @@ import StopScreenShareIcon from '@mui/icons-material/StopScreenShare'
 import ChatIcon from '@mui/icons-material/Chat'
 import GridViewIcon from '@mui/icons-material/GridView';
 import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
-import server from '../environment';
+import server, { backendUrl } from '../environment';
 import Whiteboard from "../components/Whiteboard";
 import BrushIcon from '@mui/icons-material/Brush';
 import AddReactionIcon from '@mui/icons-material/AddReaction';
@@ -21,7 +21,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
 
-const server_url = server;
+const server_url = backendUrl;
 var connections = {};
 const peerConfigConnections = {
     iceServers: [

@@ -1,0 +1,66 @@
+diff --git a/frontend/src/environment.js b/frontend/src/environment.js
+index c88c1eb..5656bae 100644
+--- a/frontend/src/environment.js
++++ b/frontend/src/environment.js
+@@ -1,6 +1,21 @@
+-const server =
++// The real backend origin — always absolute. Socket.IO needs this directly;
++// a WebSocket connection can't be routed through an HTTP rewrite the way a
++// normal REST call can.
++export const backendUrl =
+   process.env.NODE_ENV === "production"
+     ? "https://callify-backend-709m.onrender.com"
+     : "http://localhost:8000";
+ 
+-export default server;
+\ No newline at end of file
++// Used for REST API calls (axios/fetch). In production this is a relative
++// path on purpose: requests stay same-origin (Vercel proxies /api/* to the
++// backend — see vercel.json), so the auth cookie is first-party instead of
++// cross-site. Safari and Firefox block third-party cookies by default, and
++// a growing share of Chrome users do too — this avoids that entirely rather
++// than relying on every visitor's browser/privacy settings happening to
++// allow it.
++const server =
++  process.env.NODE_ENV === "production"
++    ? ""
++    : backendUrl;
++
++export default server;
+diff --git a/frontend/src/pages/VideoMeet.jsx b/frontend/src/pages/VideoMeet.jsx
+index dc91729..3aed461 100644
+--- a/frontend/src/pages/VideoMeet.jsx
++++ b/frontend/src/pages/VideoMeet.jsx
+@@ -12,7 +12,7 @@ import StopScreenShareIcon from '@mui/icons-material/StopScreenShare'
+ import ChatIcon from '@mui/icons-material/Chat'
+ import GridViewIcon from '@mui/icons-material/GridView';
+ import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
+-import server from '../environment';
++import server, { backendUrl } from '../environment';
+ import Whiteboard from "../components/Whiteboard";
+ import BrushIcon from '@mui/icons-material/Brush';
+ import AddReactionIcon from '@mui/icons-material/AddReaction';
+@@ -21,7 +21,7 @@ import InfoIcon from '@mui/icons-material/Info';
+ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+ import CheckIcon from '@mui/icons-material/Check';
+ 
+-const server_url = server;
++const server_url = backendUrl;
+ var connections = {};
+ const peerConfigConnections = {
+     iceServers: [
+diff --git a/frontend/vercel.json b/frontend/vercel.json
+new file mode 100644
+index 0000000..4d402ec
+--- /dev/null
++++ b/frontend/vercel.json
+@@ -0,0 +1,9 @@
++{
++  "$schema": "https://openapi.vercel.sh/vercel.json",
++  "rewrites": [
++    {
++      "source": "/api/:path*",
++      "destination": "https://callify-backend-709m.onrender.com/api/:path*"
++    }
++  ]
++}

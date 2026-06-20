@@ -1,14 +1,17 @@
 const isProd = process.env.NODE_ENV === "production";
 
-// Frontend (Vercel) and backend (Render) are different domains in production,
-// which makes this a cross-site request — cookies need SameSite=None + Secure
-// for the browser to send them at all. In local dev, frontend and backend are
-// both on "localhost" (just different ports), which counts as same-site, so
-// the stricter/simpler Lax + non-Secure settings work fine over plain HTTP.
+// Frontend REST calls are proxied through Vercel (see frontend/vercel.json),
+// so from the browser's point of view they're same-origin in both dev
+// (localhost:3000 -> localhost:8000, same-site since only the port differs)
+// and production (callify-connect.vercel.app -> proxied to Render, same
+// origin as far as the browser's cookie jar is concerned). That means Lax
+// works everywhere — no need for the cross-site None/Secure combination,
+// which Safari/Firefox (and an increasing share of Chrome users) block by
+// default regardless of how correctly it's configured.
 export const authCookieOptions = {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+    sameSite: "lax",
     maxAge: 24 * 60 * 60 * 1000, // 1 day — matches the JWT's own expiry
 };
 
@@ -17,5 +20,5 @@ export const authCookieOptions = {
 export const clearAuthCookieOptions = {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? "none" : "lax",
+    sameSite: "lax",
 };

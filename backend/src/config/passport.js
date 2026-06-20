@@ -5,7 +5,11 @@ import User from "../models/user.model.js";
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "https://callify-backend-709m.onrender.com/api/v1/users/auth/google/callback"
+    // This needs to be the Vercel-proxied path (https://<your-app>.vercel.app/api/v1/users/auth/google/callback),
+    // not the direct Render URL — otherwise the cookie set on this response
+    // ends up scoped to Render's domain, making it a cross-site cookie again
+    // even with the proxy in place for everything else.
+    callbackURL: process.env.GOOGLE_CALLBACK_URL
 }, async (accessToken, refreshToken, profile, done) => {
     try {
         // check if user already exists
